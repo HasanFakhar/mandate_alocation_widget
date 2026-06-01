@@ -14,7 +14,6 @@ class MandateController extends GetxController {
 
   final RxList<MandateModel> mandates = RxList<MandateModel>([]);
   final Rx<PortfolioData?> portfolioData = Rx<PortfolioData?>(null);
-  final String  error  = '';
   double totalPortfolioValue  = 0.0;
   Map<String, double> marketValueByAssetClass = <String, double>{};
   Map<String, double> allocationByAssetClass  = <String, double>{};
@@ -30,6 +29,9 @@ class MandateController extends GetxController {
   void _loadDummyData() {
     _loadMandatesFromList([
       {'AssetName': 'Liquiditeiten', 'Min': 0.0,  'Max': 15.0, 'Strategic': 5.0},
+      {'AssetName': 'Aandelen',     'Min': 50.0, 'Max': 80.0, 'Strategic': 65.0},
+      {'AssetName': 'Obligaties',   'Min': 10.0, 'Max': 40.0, 'Strategic': 25.0},
+      // {'AssetName': 'Vastgoed',     'Min': 5.0,  'Max': 20.0, 'Strategic': 10.0},
     ]);
 
     _loadPortfolioFromJson({
@@ -98,7 +100,7 @@ class MandateController extends GetxController {
           'ReportingCurrencyCode': 'eu',
           'AssetClassName': 'Obligaties',
           'LocalCurrencyISOCode': 'EUR',
-          'MarketValue': 11200.0,
+          'MarketValue': 112000.0,
         },
         {
           'FullSecurityName': 'CBRE Global REIT',
@@ -114,6 +116,7 @@ class MandateController extends GetxController {
       ],
       'Table1': [
         {'ColumnValue': 'Liquiditeiten', 'MarketValue': 13018.91, 'Percentage': 100.0, 'Yield': null},
+ 
       ],
     });
   }
