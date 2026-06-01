@@ -287,6 +287,14 @@ final Color actualColor = isOver
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(30),
+            blurRadius: 10,
+            spreadRadius: 2,
+            offset: const Offset(0, 2),
+          )
+        ] ,
         
         color: cardBackground,
         border: Border.all(color: cardBorderColor, width: isBreach ? 1.5 : 1),
