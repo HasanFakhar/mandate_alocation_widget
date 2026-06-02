@@ -12,6 +12,7 @@ dependencies:
   flutter_super: ^1.4.10
   get: ^4.7.3
   fl_chart: ^1.2.0
+  syncfusion_flutter_gauges: ^26.1.35
 
 dev_dependencies:
   flutter_test:

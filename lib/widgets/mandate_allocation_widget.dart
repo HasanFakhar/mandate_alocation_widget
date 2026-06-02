@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:syncfusion_flutter_gauges/gauges.dart';
+import 'dart:math';
 import '../controllers/mandate_controller.dart';
 import '../models/mandate_model.dart';
 
@@ -21,7 +23,7 @@ class MandateAllocationWidget extends StatelessWidget {
       final withinCount = allClasses.where((c) {
         return ctrl.isWithinMandate(c);
       }).length;
-      final breachCount = allClasses.length - withinCount ;
+      final breachCount = allClasses.length - withinCount;
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,10 +195,12 @@ class _PortfolioTrendWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final trendColor = isCompliant ? _MandateColors.within : _MandateColors.breach;
+    final trendColor = isCompliant
+        ? _MandateColors.within
+        : _MandateColors.breach;
 
     return Container(
-        width: double.infinity,
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
@@ -205,11 +209,7 @@ class _PortfolioTrendWidget extends StatelessWidget {
       child: Stack(
         children: [
           // Background chart
-          Positioned.fill(
-            child: _TrendChart(
-              isCompliant: isCompliant,
-            ),
-          ),
+          Positioned.fill(child: _TrendChart(isCompliant: isCompliant)),
           // Content overlay
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -565,7 +565,7 @@ class _AllocationRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+        padding: const EdgeInsets.only(left: 14, right: 14, top: 5,),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -577,7 +577,7 @@ class _AllocationRow extends StatelessWidget {
                     assetClass,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      fontSize: 16
+                      fontSize: 16,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -592,8 +592,6 @@ class _AllocationRow extends StatelessWidget {
                 //     color: theme.colorScheme.onSurface,
                 //   ),
                 // ),
-
-                const SizedBox(width: 10),
 
                 _MandateNumber(
                   label: _formatCurrency(marketValue),
@@ -614,7 +612,7 @@ class _AllocationRow extends StatelessWidget {
             const SizedBox(height: 10),
 
             hasMandateData
-                ? _MandateBar(
+                ? _RadialGauge(
                     min: min,
                     max: max,
                     strategic: strategic,
@@ -649,23 +647,24 @@ class _MandateNumber extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Padding(
-          padding: const EdgeInsets.only(top:3.0),
+          padding: const EdgeInsets.only(top: 3.0),
           child: Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
               color: color,
               fontSize: 18,
-              fontWeight: FontWeight.bold
+              fontWeight: FontWeight.bold,
             ),
           ),
-        ),        Text(
-          '${value.toStringAsFixed(1)}%',
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: color,
-            fontSize: 12,
-            fontWeight:FontWeight.w500,
-          ),
         ),
+        // Text(
+        //   '${value.toStringAsFixed(1)}%',
+        //   style: theme.textTheme.labelMedium?.copyWith(
+        //     color: color,
+        //     fontSize: 12,
+        //     fontWeight: FontWeight.w500,
+        //   ),
+        // ),
       ],
     );
   }
@@ -729,6 +728,244 @@ class _ComplianceBadge extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RadialGauge extends StatelessWidget {
+  final double min;
+  final double max;
+  final double strategic;
+  final double actual;
+  final bool isOver;
+  final bool isUnder;
+
+  const _RadialGauge({
+    required this.min,
+    required this.max,
+    required this.strategic,
+    required this.actual,
+    required this.isOver,
+    required this.isUnder,
+  });
+
+  double valueToAngle(double value) {
+    const startAngle = 130.0;
+    const sweepAngle = 280.0;
+
+    return startAngle + (value / 100) * sweepAngle;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final actualColor = isOver
+        ? _MandateColors.breach
+        : isUnder
+        ? _MandateColors.underColor
+        : _MandateColors.actualWithin;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 150,
+          child: SfRadialGauge(
+            axes: [
+              RadialAxis(
+                minimum: 0,
+                maximum: 100,
+                showLabels: false,
+                showTicks: false,
+                radiusFactor: 0.95,
+
+                axisLineStyle: const AxisLineStyle(
+                  thickness: 18,
+                  cornerStyle: CornerStyle.bothCurve,
+                  color: Color(0xFF2A2A2A),
+                ),
+
+                ranges: [
+                  GaugeRange(
+                    startValue: min,
+                    endValue: max,
+                    color: _MandateColors.mandateRange,
+                    startWidth: 18,
+                    endWidth: 18,
+                  ),
+                ],
+
+                pointers: <GaugePointer>[
+                  // ──────────────────────────────────────────
+                  // MIN marker
+                  // ──────────────────────────────────────────
+                  MarkerPointer(
+                    value: min,
+                    markerType: MarkerType.invertedTriangle,
+                    markerHeight: 12,
+                    markerWidth: 12,
+                    color: const Color.fromARGB(255, 6, 99, 54),
+                    enableAnimation: true,
+                  ),
+
+                  // ──────────────────────────────────────────
+                  // STRATEGIC markerR
+                  // ──────────────────────────────────────────
+                  MarkerPointer(
+                    value: strategic,
+                    markerType: MarkerType.diamond,
+                    markerHeight: 14,
+                    markerWidth: 14,
+                    color: const Color.fromARGB(255, 187, 168, 0),
+                    enableAnimation: true,
+                  ),
+
+                  // ──────────────────────────────────────────
+                  // MAX marker
+                  // ──────────────────────────────────────────
+                  MarkerPointer(
+                    value: max,
+                    markerType: MarkerType.invertedTriangle,
+                    markerHeight: 12,
+                    markerWidth: 12,
+                    color: Colors.red,
+                    enableAnimation: true,
+                  ),
+
+                  // ──────────────────────────────────────────
+                  // ACTUAL allocation needle
+                  // ──────────────────────────────────────────
+                  NeedlePointer(
+                    value: actual,
+                    enableAnimation: true,
+                    animationDuration: 800,
+
+                    needleLength: 0.78,
+                    needleStartWidth: 1,
+                    needleEndWidth: 5,
+
+                    needleColor: actualColor,
+                    tailStyle: const TailStyle(
+                      color: Color(0xFF444444),
+                      width: 6,
+                      length: 0.25,
+                    ),
+
+                    knobStyle: KnobStyle(
+                      color: isOver
+                          ? _MandateColors.breach
+                          : isUnder
+                          ? _MandateColors.underColor
+                          : _MandateColors.actualWithin,
+                      borderWidth: 0,
+                      sizeUnit: GaugeSizeUnit.factor,
+                      knobRadius: 0.08,
+                    ),
+                  ),
+                ],
+
+                annotations: [
+                  GaugeAnnotation(
+                    angle: valueToAngle(min),
+                    positionFactor: 1.15,
+                    widget: _ArcLabel('Min', min),
+                  ),
+
+                  GaugeAnnotation(
+                    angle: valueToAngle(strategic),
+                    positionFactor: 1.15,
+                    widget: _ArcLabel('Target', strategic),
+                  ),
+
+                  GaugeAnnotation(
+                    angle: valueToAngle(max),
+                    positionFactor: 1.15,
+                    widget: _ArcLabel('Max', max),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // ── BELOW GAUGE KPI ─────────────────────────────
+        Transform.translate(
+          offset: const Offset(0, -25),
+          child: Text(
+            '${actual.toStringAsFixed(1)}%',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: actualColor,
+            ),
+          ),
+        ),
+
+        Transform.translate(
+          offset: const Offset(0, -25),
+          child: Text(
+            isOver
+                ? 'Over Allocation'
+                : isUnder
+                ? 'Under Allocation'
+                : 'Within Range',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[400],
+          ),
+        ),)
+      ],
+    );
+  }
+}
+
+class _ArcLabel extends StatelessWidget {
+  final String label;
+  final double value;
+
+  const _ArcLabel(this.label, this.value, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '${value.toStringAsFixed(0)}%',
+      style: const TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+        color: Colors.white70,
+      ),
+    );
+  }
+}
+
+class _GaugeLabel extends StatelessWidget {
+  final String title;
+  final double value;
+
+  const _GaugeLabel(this.title, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[400],
+          ),
+        ),
+        Text(
+          value.toStringAsFixed(0),
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+      ],
     );
   }
 }
