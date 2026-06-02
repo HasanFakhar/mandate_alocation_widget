@@ -78,7 +78,7 @@ class _WidgetHeader extends StatelessWidget {
           Row(
             children: [
               Text(
-                'Mandate Allocation',
+                'Mandate Summary',
                 style: theme.textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.w600),
               ),
@@ -159,27 +159,24 @@ class _Legend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.grey.withAlpha(30),
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 6,
-        children: const [
-          _LegendItem(color: _MandateColors.mandateRange, label: 'Allowed range',    shape: _LegendShape.rect),
-          _LegendItem(color: _MandateColors.strategic,    label: 'Strategic target', shape: _LegendShape.line),
-          _LegendItem(color: _MandateColors.actualWithin, label: 'Actual (within)',  shape: _LegendShape.circle),
-           _LegendItem(
-          color: _MandateColors.breach,
-          label: 'Over limit',
-          shape: _LegendShape.circle,
-        ),
-        _LegendItem(
-          color: _MandateColors.underColor,
-          label: 'Under limit',
-          shape: _LegendShape.circle,
-        ),
-        ],
+    return Wrap(
+      spacing: 16,
+      runSpacing: 6,
+      children: const [
+        _LegendItem(color: _MandateColors.mandateRange, label: 'Allowed range',    shape: _LegendShape.rect),
+        _LegendItem(color: _MandateColors.strategic,    label: 'Strategic target', shape: _LegendShape.line),
+        _LegendItem(color: _MandateColors.actualWithin, label: 'Actual (within)',  shape: _LegendShape.circle),
+         _LegendItem(
+        color: _MandateColors.breach,
+        label: 'Over limit',
+        shape: _LegendShape.circle,
       ),
+      _LegendItem(
+        color: _MandateColors.underColor,
+        label: 'Under limit',
+        shape: _LegendShape.circle,
+      ),
+      ],
     );
   }
 }
@@ -265,10 +262,10 @@ class _AllocationRow extends StatelessWidget {
   final Color cardBackground = isOver
     ? _MandateColors.breach.withAlpha(30)
     : isUnder
-        ? _MandateColors.underBreach.withAlpha(30)
+        ? _MandateColors.underColor.withAlpha(30)
         : hasMandateData
             ? _MandateColors.within.withAlpha(30)
-            : theme.colorScheme.outlineVariant;
+            : theme.colorScheme.surfaceContainerLow;
 
 final Color cardBorderColor = isOver
     ? _MandateColors.breach
@@ -276,16 +273,16 @@ final Color cardBorderColor = isOver
         ? _MandateColors.underColor
         : hasMandateData
             ? _MandateColors.within
-            : theme.colorScheme.outlineVariant;
+            : theme.colorScheme.surfaceContainerLow;
 
 final Color actualColor = isOver
-    ? _MandateColors.overBreach
+    ? _MandateColors.breach
     : isUnder
-        ? _MandateColors.underBreach
+        ? _MandateColors.underColor
         : _MandateColors.actualWithin;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         boxShadow: [
           BoxShadow(
@@ -517,7 +514,7 @@ class _MandateBar extends StatelessWidget {
                 child: Container(
                   height: 8,
                   decoration: BoxDecoration(
-                    color: Colors.grey.withAlpha(220),
+                    color: actualColor.withAlpha(20),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -545,23 +542,23 @@ class _MandateBar extends StatelessWidget {
                 ),
               ),
               // // Min tick
-              // Positioned(
-              //   top: 22, left: mandateLeft,
-              //   child: Padding(
-              //     padding: const EdgeInsets.only(top: 2.0),
-              //     child: Text('${min.toStringAsFixed(0)}%',
-              //         style: TextStyle(fontSize: 10, color:Colors.black, fontWeight: FontWeight.w500)),
-              //   ),
-              // ),
-              // // Max tick
-              // Positioned(
-              //   top: 22, left: (pct(max) - 16).clamp(0, barWidth - 20),
-              //   child: Padding(
-              //     padding: const EdgeInsets.only(top: 2.0),
-              //     child: Text('${max.toStringAsFixed(0)}%',
-              //         style: TextStyle(fontSize:10, color: Colors.black, fontWeight: FontWeight.w500)),
-              //   ),
-              // ),
+              Positioned(
+                top: 22, left: mandateLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 2.0),
+                  child: Text('${min.toStringAsFixed(0)}%',
+                      style: TextStyle(fontSize: 10, color: actualColor, fontWeight: FontWeight.w500)),
+                ),
+              ),
+              // Max tick
+              Positioned(
+                top: 22, left: (pct(max) - 16).clamp(0, barWidth - 20),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 2.0),
+                  child: Text('${max.toStringAsFixed(0)}%',
+                      style: TextStyle(fontSize:10, color: actualColor, fontWeight: FontWeight.w500)),
+                ),
+              ),
               // // Strategic tick
               // Positioned(
               //   top: 22, left: (strategicX - 8).clamp(0, barWidth - 24),
@@ -757,14 +754,14 @@ class _StatusBadge extends StatelessWidget {
 
 
 abstract class _MandateColors {
-  static const Color mandateRange  = Color(0xFFB3D4F5);
-  static const Color strategic     = Color(0xFF3B6D11);
-  static const Color actualWithin  = Color(0xFF1E7E4A);
-  static const Color breach        = Color(0xFFD93025);
-  static const Color underColor    = Color(0xFFE8891A);
- static const Color overBreach    = Color.fromARGB(255, 83, 6, 0); // red
-  static const Color underBreach   = Color.fromARGB(255, 212, 54, 43); // yellow
-  static const Color within        = Color(0xFF1E7E4A);
+  static const Color mandateRange  = Color(0xFF0078D4); // Azure
+  static const Color strategic     = Color(0xFF6D7B8F); // Slate grey-blue
+  static const Color actualWithin  = Color(0xFF1E7E4A); // Green (compliance)
+  static const Color breach        = Color(0xFFD93025); // Red (compliance)
+  static const Color underColor    = Color(0xFFE8891A); // Orange (compliance)
+  static const Color overBreach    = Color.fromARGB(255, 83, 6, 0); // Dark red (compliance)
+  static const Color underBreach   = Color.fromARGB(255, 212, 54, 43); // Orange-red (compliance)
+  static const Color within        = Color(0xFF1E7E4A); // Green (compliance)
 }
 
 
