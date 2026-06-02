@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../controllers/mandate_controller.dart';
 import '../models/mandate_model.dart';
 
@@ -17,17 +18,20 @@ class MandateAllocationWidget extends StatelessWidget {
         return const Center(child: CircularProgressIndicator());
       }
 
-      final withinCount = allClasses.where((c) { 
-        
-        
-        return ctrl.isWithinMandate(c); }).length;
-      final breachCount = allClasses.length - withinCount;
+      final withinCount = allClasses.where((c) {
+        return ctrl.isWithinMandate(c);
+      }).length;
+      final breachCount = allClasses.length - withinCount ;
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _WidgetHeader(
+          _PortfolioTrendWidget(
             totalValue: ctrl.totalPortfolioValue,
+            isCompliant: breachCount == 0,
+          ),
+          const SizedBox(height: 16),
+          _WidgetHeader(
             assetClassCount: allClasses.length,
             withinCount: withinCount,
             breachCount: breachCount,
@@ -35,12 +39,14 @@ class MandateAllocationWidget extends StatelessWidget {
           const SizedBox(height: 16),
           const _Legend(),
           const SizedBox(height: 12),
-          ...allClasses.map((assetClass) => _AllocationRow(
-                assetClass: assetClass,
-                actual: ctrl.actualAllocation(assetClass),
-                marketValue: ctrl.marketValue(assetClass),
-                mandate: ctrl.mandateFor(assetClass),
-              )),
+          ...allClasses.map(
+            (assetClass) => _AllocationRow(
+              assetClass: assetClass,
+              actual: ctrl.actualAllocation(assetClass),
+              marketValue: ctrl.marketValue(assetClass),
+              mandate: ctrl.mandateFor(assetClass),
+            ),
+          ),
         ],
       );
     });
@@ -52,13 +58,11 @@ class MandateAllocationWidget extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _WidgetHeader extends StatelessWidget {
-  final double totalValue;
   final int assetClassCount;
   final int withinCount;
   final int breachCount;
 
   const _WidgetHeader({
-    required this.totalValue,
     required this.assetClassCount,
     required this.withinCount,
     required this.breachCount,
@@ -82,8 +86,9 @@ class _WidgetHeader extends StatelessWidget {
             children: [
               Text(
                 'Mandate Summary',
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w600),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const Spacer(),
               if (breachCount > 0)
@@ -113,9 +118,10 @@ class _WidgetHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _HeaderStat(label: 'Total value', value: _formatCurrency(totalValue)),
-                    const SizedBox(height: 12),
-                    _HeaderStat(label: 'Asset classes', value: '$assetClassCount'),
+                    _HeaderStat(
+                      label: 'Asset classes',
+                      value: '$assetClassCount',
+                    ),
                     const SizedBox(height: 12),
                     _HeaderStat(
                       label: 'Within mandate',
@@ -154,8 +160,9 @@ class _HeaderStat extends StatelessWidget {
       children: [
         Text(
           label,
-          style: theme.textTheme.labelSmall
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
@@ -166,6 +173,155 @@ class _HeaderStat extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Portfolio Trend Widget
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PortfolioTrendWidget extends StatelessWidget {
+  final double totalValue;
+  final bool isCompliant;
+
+  const _PortfolioTrendWidget({
+    required this.totalValue,
+    required this.isCompliant,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final trendColor = isCompliant ? _MandateColors.within : _MandateColors.breach;
+
+    return Container(
+        width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Stack(
+        children: [
+          // Background chart
+          Positioned.fill(
+            child: _TrendChart(
+              isCompliant: isCompliant,
+            ),
+          ),
+          // Content overlay
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Portfolio Value',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatCurrency(totalValue),
+                  style: theme.textTheme.displaySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isCompliant ? '✓ Compliant' : '⚠ Breach Detected',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: trendColor,
+                    fontWeight: FontWeight.w600,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 2,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrendChart extends StatelessWidget {
+  final bool isCompliant;
+
+  const _TrendChart({required this.isCompliant});
+
+  List<FlSpot> _generateSpots() {
+    if (isCompliant) {
+      // Upward trend
+      return [
+        const FlSpot(0, 2),
+        const FlSpot(1, 4),
+        const FlSpot(2, 6),
+        const FlSpot(3, 2),
+        const FlSpot(4, 10),
+        const FlSpot(5, 8),
+      ];
+    } else {
+      // Downward trend
+      return [
+        const FlSpot(0, 10),
+        const FlSpot(1, 2),
+        const FlSpot(2, 3),
+        const FlSpot(3, 6),
+        const FlSpot(4, 3),
+        const FlSpot(5, 1),
+      ];
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isCompliant ? _MandateColors.within : _MandateColors.breach;
+    final spots = _generateSpots();
+
+    return SizedBox(
+      width: 120,
+      height: 60,
+      child: LineChart(
+        LineChartData(
+          gridData: const FlGridData(show: false),
+          titlesData: const FlTitlesData(show: false),
+          borderData: FlBorderData(show: false),
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              isCurved: false,
+              color: color,
+              barWidth: 2.5,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(
+                show: true,
+                color: color.withOpacity(0.15),
+              ),
+            ),
+          ],
+          minX: 0,
+          maxX: 5,
+          minY: 0,
+          maxY: 11,
+        ),
+      ),
     );
   }
 }
@@ -200,7 +356,9 @@ class _PerformanceGauge extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: isOptimal ? _MandateColors.within : _MandateColors.breach,
+                color: isOptimal
+                    ? _MandateColors.within
+                    : _MandateColors.breach,
                 width: 3,
               ),
             ),
@@ -255,19 +413,31 @@ class _Legend extends StatelessWidget {
       spacing: 16,
       runSpacing: 6,
       children: const [
-        _LegendItem(color: _MandateColors.mandateRange, label: 'Allowed range',    shape: _LegendShape.rect),
-        _LegendItem(color: _MandateColors.strategic,    label: 'Strategic target', shape: _LegendShape.line),
-        _LegendItem(color: _MandateColors.actualWithin, label: 'Actual (within)',  shape: _LegendShape.circle),
-         _LegendItem(
-        color: _MandateColors.breach,
-        label: 'Over limit',
-        shape: _LegendShape.circle,
-      ),
-      _LegendItem(
-        color: _MandateColors.underColor,
-        label: 'Under limit',
-        shape: _LegendShape.circle,
-      ),
+        // _LegendItem(
+        //   color: _MandateColors.mandateRange,
+        //   label: 'Allowed range',
+        //   shape: _LegendShape.rect,
+        // ),
+        // _LegendItem(
+        //   color: _MandateColors.strategic,
+        //   label: 'Strategic target',
+        //   shape: _LegendShape.line,
+        // ),
+        _LegendItem(
+          color: _MandateColors.actualWithin,
+          label: 'Actual (within)',
+          shape: _LegendShape.circle,
+        ),
+        _LegendItem(
+          color: _MandateColors.breach,
+          label: 'Over limit',
+          shape: _LegendShape.circle,
+        ),
+        _LegendItem(
+          color: _MandateColors.underColor,
+          label: 'Under limit',
+          shape: _LegendShape.circle,
+        ),
       ],
     );
   }
@@ -294,17 +464,23 @@ class _LegendItem extends StatelessWidget {
     switch (shape) {
       case _LegendShape.rect:
         indicator = Container(
-          width: 16, height: 10,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+          width: 16,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
         );
       case _LegendShape.line:
         indicator = SizedBox(
-          width: 16, height: 10,
+          width: 16,
+          height: 10,
           child: Center(child: Container(width: 2, height: 10, color: color)),
         );
       case _LegendShape.circle:
         indicator = Container(
-          width: 10, height: 10,
+          width: 10,
+          height: 10,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         );
     }
@@ -316,15 +492,14 @@ class _LegendItem extends StatelessWidget {
         const SizedBox(width: 5),
         Text(
           label,
-          style: theme.textTheme.labelSmall
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );
   }
 }
-
-
 
 class _AllocationRow extends StatelessWidget {
   final String assetClass;
@@ -343,33 +518,33 @@ class _AllocationRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final double min       = mandate?.min ?? 0;
-    final double max       = mandate?.max ?? 100;
+    final double min = mandate?.min ?? 0;
+    final double max = mandate?.max ?? 100;
     final double strategic = mandate?.strategic ?? ((min + max) / 2);
     final bool hasMandateData = mandate != null;
-    final bool isOver     = hasMandateData && actual > max;
-    final bool isUnder    = hasMandateData && actual < min;
-    final bool isBreach   = isOver || isUnder;
+    final bool isOver = hasMandateData && actual > max;
+    final bool isUnder = hasMandateData && actual < min;
+    final bool isBreach = isOver || isUnder;
 
-  final Color cardBackground = isOver
-    ? _MandateColors.breach.withAlpha(30)
-    : isUnder
+    final Color cardBackground = isOver
+        ? _MandateColors.breach.withAlpha(30)
+        : isUnder
         ? _MandateColors.underColor.withAlpha(30)
         : hasMandateData
-            ? _MandateColors.within.withAlpha(30)
-            : theme.colorScheme.surfaceContainerLow;
+        ? _MandateColors.within.withAlpha(30)
+        : theme.colorScheme.surfaceContainerLow;
 
-final Color cardBorderColor = isOver
-    ? _MandateColors.breach
-    : isUnder
+    final Color cardBorderColor = isOver
+        ? _MandateColors.breach
+        : isUnder
         ? _MandateColors.underColor
         : hasMandateData
-            ? _MandateColors.within
-            : theme.colorScheme.surfaceContainerLow;
+        ? _MandateColors.within
+        : theme.colorScheme.surfaceContainerLow;
 
-final Color actualColor = isOver
-    ? _MandateColors.breach
-    : isUnder
+    final Color actualColor = isOver
+        ? _MandateColors.breach
+        : isUnder
         ? _MandateColors.underColor
         : _MandateColors.actualWithin;
 
@@ -382,56 +557,51 @@ final Color actualColor = isOver
             blurRadius: 10,
             spreadRadius: 2,
             offset: const Offset(0, 2),
-          )
-        ] ,
-        
+          ),
+        ],
+
         color: cardBackground,
         border: Border.all(color: cardBorderColor, width: isBreach ? 1.5 : 1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Top row: name / market value / numbers / badge ────────────
+            // ── Top row: assetClass / market value / actual / badge ────────────
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Name + market value
                 Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        assetClass,
-                        style: theme.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _formatCurrency(marketValue),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    assetClass,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
 
-                // Mandate numbers
-                if (hasMandateData) ...[
-                  _MandateNumber(label: 'Min',value: min,color: theme.colorScheme.onSurfaceVariant),
-                  const SizedBox(width: 10),
-                  _MandateNumber(label: 'Strategic', value: strategic, color: _MandateColors.strategic),
-                  const SizedBox(width: 10),
-                  _MandateNumber(label: 'Max',value: max,color: theme.colorScheme.onSurfaceVariant),
-                  const SizedBox(width: 10),
-                ],
+                const SizedBox(width: 8),
 
-                _MandateNumber(label: 'Actual', value: actual, color: actualColor, bold: true),
+                // Text(
+                //   _formatCurrency(marketValue),
+                //   style: theme.textTheme.titleMedium?.copyWith(
+                //     fontWeight: FontWeight.bold,
+                //     color: theme.colorScheme.onSurface,
+                //   ),
+                // ),
+
                 const SizedBox(width: 10),
+
+                _MandateNumber(
+                  label: _formatCurrency(marketValue),
+                  value: actual,
+                  color: actualColor,
+                ),
+
+                const SizedBox(width: 12),
 
                 _ComplianceBadge(
                   isOver: isOver,
@@ -464,13 +634,11 @@ class _MandateNumber extends StatelessWidget {
   final String label;
   final double value;
   final Color color;
-  final bool bold;
 
   const _MandateNumber({
     required this.label,
     required this.value,
     required this.color,
-    this.bold = false,
   });
 
   @override
@@ -478,28 +646,30 @@ class _MandateNumber extends StatelessWidget {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontSize: 12,
+        Padding(
+          padding: const EdgeInsets.only(top:3.0),
+          child: Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: color,
+              fontSize: 18,
+              fontWeight: FontWeight.bold
+            ),
           ),
-        ),
-        const SizedBox(height: 1),
-        Text(
+        ),        Text(
           '${value.toStringAsFixed(1)}%',
           style: theme.textTheme.labelMedium?.copyWith(
             color: color,
             fontSize: 12,
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+            fontWeight:FontWeight.w500,
           ),
         ),
       ],
     );
   }
 }
-
 
 class _ComplianceBadge extends StatelessWidget {
   final bool isOver;
@@ -551,14 +721,17 @@ class _ComplianceBadge extends StatelessWidget {
           const SizedBox(width: 3),
           Text(
             label,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: fg,
+            ),
           ),
         ],
       ),
     );
   }
 }
-
 
 class _MandateBar extends StatelessWidget {
   final double min;
@@ -575,15 +748,16 @@ class _MandateBar extends StatelessWidget {
     required this.max,
     required this.strategic,
     required this.actual,
-    required this.isOver ,
+    required this.isOver,
     required this.isUnder,
   });
 
   @override
   Widget build(BuildContext context) {
-    final actualColor =
-        isOver ? _MandateColors.breach
-        : isUnder ? _MandateColors.underColor
+    final actualColor = isOver
+        ? _MandateColors.breach
+        : isUnder
+        ? _MandateColors.underColor
         : _MandateColors.actualWithin;
 
     return SizedBox(
@@ -593,16 +767,18 @@ class _MandateBar extends StatelessWidget {
           final barWidth = constraints.maxWidth;
           double pct(double v) => (v.clamp(0, 100) / _scale) * barWidth;
 
-          final mandateLeft  = pct(min);
+          final mandateLeft = pct(min);
           final mandateWidth = (pct(max) - pct(min)).clamp(0.0, barWidth);
-          final strategicX   = pct(strategic);
-          final actualX      = pct(actual);
+          final strategicX = pct(strategic);
+          final actualX = pct(actual);
 
           return Stack(
             clipBehavior: Clip.none,
             children: [
               Positioned(
-                top: 12, left: 0, right: 0,
+                top: 12,
+                left: 0,
+                right: 0,
                 child: Container(
                   height: 8,
                   decoration: BoxDecoration(
@@ -613,7 +789,9 @@ class _MandateBar extends StatelessWidget {
               ),
               // Mandate range
               Positioned(
-                top: 12, left: mandateLeft, width: mandateWidth,
+                top: 12,
+                left: mandateLeft,
+                width: mandateWidth,
                 child: Container(
                   height: 8,
                   decoration: BoxDecoration(
@@ -624,9 +802,11 @@ class _MandateBar extends StatelessWidget {
               ),
               // Strategic line
               Positioned(
-                top: 6, left: strategicX - 1,
+                top: 6,
+                left: strategicX - 1,
                 child: Container(
-                  width: 2, height: 20,
+                  width: 2,
+                  height: 20,
                   decoration: BoxDecoration(
                     color: _MandateColors.strategic,
                     borderRadius: BorderRadius.circular(1),
@@ -635,20 +815,34 @@ class _MandateBar extends StatelessWidget {
               ),
               // // Min tick
               Positioned(
-                top: 22, left: mandateLeft,
+                top: 22,
+                left: mandateLeft,
                 child: Padding(
                   padding: const EdgeInsets.only(top: 2.0),
-                  child: Text('${min.toStringAsFixed(0)}%',
-                      style: TextStyle(fontSize: 10, color: actualColor, fontWeight: FontWeight.w500)),
+                  child: Text(
+                    '${min.toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: actualColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
               ),
               // Max tick
               Positioned(
-                top: 22, left: (pct(max) - 16).clamp(0, barWidth - 20),
+                top: 22,
+                left: (pct(max) - 16).clamp(0, barWidth - 20),
                 child: Padding(
                   padding: const EdgeInsets.only(top: 2.0),
-                  child: Text('${max.toStringAsFixed(0)}%',
-                      style: TextStyle(fontSize:10, color: actualColor, fontWeight: FontWeight.w500)),
+                  child: Text(
+                    '${max.toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: actualColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
               ),
               // // Strategic tick
@@ -662,8 +856,13 @@ class _MandateBar extends StatelessWidget {
               // ),
               // Actual dot
               Positioned(
-                top: 7, left: actualX - 9,
-                child: _ActualDot(color: actualColor, isOver: isOver, isUnder: isUnder),
+                top: 7,
+                left: actualX - 9,
+                child: _ActualDot(
+                  color: actualColor,
+                  isOver: isOver,
+                  isUnder: isUnder,
+                ),
               ),
             ],
           );
@@ -673,13 +872,16 @@ class _MandateBar extends StatelessWidget {
   }
 }
 
-
 class _ActualDot extends StatefulWidget {
   final Color color;
   final bool isOver;
   final bool isUnder;
 
-  const _ActualDot({required this.color, required this.isOver, required this.isUnder});
+  const _ActualDot({
+    required this.color,
+    required this.isOver,
+    required this.isUnder,
+  });
 
   @override
   State<_ActualDot> createState() => _ActualDotState();
@@ -697,9 +899,10 @@ class _ActualDotState extends State<_ActualDot>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
-    _scale = Tween<double>(begin: 1.0, end: 1.6).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 1.6,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
     if (widget.isOver || widget.isUnder) _ctrl.repeat(reverse: true);
   }
 
@@ -726,7 +929,8 @@ class _ActualDotState extends State<_ActualDot>
 
     if (!widget.isOver && !widget.isUnder) {
       return Container(
-        width: dotSize, height: dotSize,
+        width: dotSize,
+        height: dotSize,
         decoration: BoxDecoration(
           color: widget.color,
           shape: BoxShape.circle,
@@ -738,14 +942,16 @@ class _ActualDotState extends State<_ActualDot>
     return AnimatedBuilder(
       animation: _scale,
       builder: (_, __) => SizedBox(
-        width: dotSize, height: dotSize,
+        width: dotSize,
+        height: dotSize,
         child: Stack(
           alignment: Alignment.center,
           children: [
             Transform.scale(
               scale: _scale.value,
               child: Container(
-                width: dotSize, height: dotSize,
+                width: dotSize,
+                height: dotSize,
                 decoration: BoxDecoration(
                   color: widget.color.withOpacity(0.25),
                   shape: BoxShape.circle,
@@ -753,7 +959,8 @@ class _ActualDotState extends State<_ActualDot>
               ),
             ),
             Container(
-              width: dotSize - 4, height: dotSize - 4,
+              width: dotSize - 4,
+              height: dotSize - 4,
               decoration: BoxDecoration(
                 color: widget.color,
                 shape: BoxShape.circle,
@@ -766,8 +973,6 @@ class _ActualDotState extends State<_ActualDot>
     );
   }
 }
-
-
 
 class _SimpleBar extends StatelessWidget {
   final double actual;
@@ -806,8 +1011,6 @@ class _SimpleBar extends StatelessWidget {
   }
 }
 
-
-
 class _StatusBadge extends StatelessWidget {
   final String label;
   final Color color;
@@ -835,7 +1038,11 @@ class _StatusBadge extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
           ),
         ],
       ),
@@ -843,17 +1050,14 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
-
-
 abstract class _MandateColors {
-  static const Color mandateRange  = Color.fromARGB(255, 30, 64, 92); // Azure
-  static const Color strategic     = Color(0xFF6D7B8F); // Slate grey-blue
-  static const Color actualWithin  = Color(0xFF1E7E4A); // Green (compliance)
-  static const Color breach        = Color(0xFFD93025); // Red (compliance)
-  static const Color underColor    = Color(0xFFE8891A); // Orange (compliance)
-  static const Color within        = Color(0xFF1E7E4A); // Green (compliance)
+  static const Color mandateRange = Color.fromARGB(255, 30, 64, 92); // Azure
+  static const Color strategic = Color(0xFF6D7B8F); // Slate grey-blue
+  static const Color actualWithin = Color(0xFF1E7E4A); // Green (compliance)
+  static const Color breach = Color(0xFFD93025); // Red (compliance)
+  static const Color underColor = Color(0xFFE8891A); // Orange (compliance)
+  static const Color within = Color(0xFF1E7E4A); // Green (compliance)
 }
-
 
 String _formatCurrency(double value) {
   if (value >= 1000000) return '€${(value / 1000000).toStringAsFixed(2)}M';

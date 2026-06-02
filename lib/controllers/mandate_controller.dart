@@ -28,10 +28,10 @@ class MandateController extends GetxController {
 
   void _loadDummyData() {
     _loadMandatesFromList([
-      {'AssetName': 'Liquiditeiten', 'Min': 0.0,  'Max': 100.0, 'Strategic': 5.0},
-      {'AssetName': 'Aandelen',     'Min': 10.0, 'Max': 80.0, 'Strategic': 65.0},
-      {'AssetName': 'Obligaties',   'Min': 10.0, 'Max': 80.0, 'Strategic': 25.0},
-      {'AssetName': 'Vastgoed',     'Min': 5.0,  'Max': 100.0, 'Strategic': 10.0},
+      {'AssetName': 'Liquiditeiten', 'Min': 0.0,  'Max': 15.0, 'Strategic': 5.0},
+      {'AssetName': 'Aandelen',     'Min': 50.0, 'Max': 80.0, 'Strategic': 65.0},
+      {'AssetName': 'Obligaties',   'Min': 10.0, 'Max':30.0, 'Strategic': 25.0},
+      // {'AssetName': 'Vastgoed',     'Min': 5.0,  'Max': 20.0, 'Strategic': 10.0},
     ]);
 
     _loadPortfolioFromJson({
@@ -188,6 +188,4 @@ class MandateController extends GetxController {
     final actual = actualAllocation(assetName);
     return actual >= (m.min ?? 0) && actual <= (m.max ?? 100);
   }
-  
-
 }
