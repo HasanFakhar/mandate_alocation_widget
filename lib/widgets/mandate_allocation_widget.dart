@@ -17,7 +17,10 @@ class MandateAllocationWidget extends StatelessWidget {
         return const Center(child: CircularProgressIndicator());
       }
 
-      final withinCount = allClasses.where((c) => ctrl.isWithinMandate(c)).length;
+      final withinCount = allClasses.where((c) { 
+        
+        
+        return ctrl.isWithinMandate(c); }).length;
       final breachCount = allClasses.length - withinCount;
 
       return Column(
@@ -97,19 +100,32 @@ class _WidgetHeader extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _HeaderStat(label: 'Total value', value: _formatCurrency(totalValue)),
+              _PerformanceGauge(
+                withinCount: withinCount,
+                breachCount: breachCount,
+              ),
               const SizedBox(width: 24),
-              _HeaderStat(label: 'Asset classes', value: '$assetClassCount'),
-              const SizedBox(width: 24),
-              _HeaderStat(
-                label: 'Within mandate',
-                value: '$withinCount / $assetClassCount',
-                valueColor: withinCount == assetClassCount
-                    ? _MandateColors.within
-                    : _MandateColors.breach,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _HeaderStat(label: 'Total value', value: _formatCurrency(totalValue)),
+                    const SizedBox(height: 12),
+                    _HeaderStat(label: 'Asset classes', value: '$assetClassCount'),
+                    const SizedBox(height: 12),
+                    _HeaderStat(
+                      label: 'Within mandate',
+                      value: '$withinCount / $assetClassCount',
+                      valueColor: withinCount == assetClassCount
+                          ? _MandateColors.within
+                          : _MandateColors.breach,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -150,6 +166,82 @@ class _HeaderStat extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Performance Gauge
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PerformanceGauge extends StatelessWidget {
+  final int withinCount;
+  final int breachCount;
+
+  const _PerformanceGauge({
+    required this.withinCount,
+    required this.breachCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final total = withinCount + breachCount;
+    final performancePercent = total > 0 ? (withinCount / total) * 100 : 0.0;
+    final isOptimal = breachCount == 0;
+
+    return SizedBox(
+      width: 120,
+      height: 120,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Background circle
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isOptimal ? _MandateColors.within : _MandateColors.breach,
+                width: 3,
+              ),
+            ),
+          ),
+          // Progress circle
+          SizedBox(
+            width: 110,
+            height: 110,
+            child: CircularProgressIndicator(
+              value: performancePercent / 100,
+              strokeWidth: 8,
+              backgroundColor: const Color(0xFF3A3A3A),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isOptimal ? _MandateColors.within : _MandateColors.breach,
+              ),
+            ),
+          ),
+          // Center content
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '${performancePercent.toStringAsFixed(0)}%',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              Text(
+                'Compliant',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[400],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -754,13 +846,11 @@ class _StatusBadge extends StatelessWidget {
 
 
 abstract class _MandateColors {
-  static const Color mandateRange  = Color(0xFF0078D4); // Azure
+  static const Color mandateRange  = Color.fromARGB(255, 30, 64, 92); // Azure
   static const Color strategic     = Color(0xFF6D7B8F); // Slate grey-blue
   static const Color actualWithin  = Color(0xFF1E7E4A); // Green (compliance)
   static const Color breach        = Color(0xFFD93025); // Red (compliance)
   static const Color underColor    = Color(0xFFE8891A); // Orange (compliance)
-  static const Color overBreach    = Color.fromARGB(255, 83, 6, 0); // Dark red (compliance)
-  static const Color underBreach   = Color.fromARGB(255, 212, 54, 43); // Orange-red (compliance)
   static const Color within        = Color(0xFF1E7E4A); // Green (compliance)
 }
 
