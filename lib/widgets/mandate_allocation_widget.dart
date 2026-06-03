@@ -525,6 +525,7 @@ class _AllocationRow extends StatelessWidget {
     final bool isOver = hasMandateData && actual > max;
     final bool isUnder = hasMandateData && actual < min;
     final bool isBreach = isOver || isUnder;
+    final double diff = isOver ? (actual-max) : isUnder ?  (min-actual) : 0;
 
     final Color cardBackground = isOver
         ? _MandateColors.breach.withAlpha(30)
@@ -565,7 +566,7 @@ class _AllocationRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
-        padding: const EdgeInsets.only(left: 14, right: 14, top: 5,),
+        padding: const EdgeInsets.only(left: 14, right: 14, top: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -592,7 +593,6 @@ class _AllocationRow extends StatelessWidget {
                 //     color: theme.colorScheme.onSurface,
                 //   ),
                 // ),
-
                 _MandateNumber(
                   label: _formatCurrency(marketValue),
                   value: actual,
@@ -602,6 +602,7 @@ class _AllocationRow extends StatelessWidget {
                 const SizedBox(width: 12),
 
                 _ComplianceBadge(
+                  diff: diff,
                   isOver: isOver,
                   isUnder: isUnder,
                   hasMandateData: hasMandateData,
@@ -674,8 +675,10 @@ class _ComplianceBadge extends StatelessWidget {
   final bool isOver;
   final bool isUnder;
   final bool hasMandateData;
+  final double diff;
 
   const _ComplianceBadge({
+    required this.diff,
     required this.isOver,
     required this.isUnder,
     required this.hasMandateData,
@@ -693,12 +696,12 @@ class _ComplianceBadge extends StatelessWidget {
     if (isOver) {
       bg = _MandateColors.breach.withAlpha(60);
       fg = _MandateColors.breach;
-      label = 'Over';
+      label = '${diff.toStringAsFixed(1)} % above max';
       icon = Icons.arrow_upward_rounded;
     } else if (isUnder) {
       bg = _MandateColors.underColor.withAlpha(20);
       fg = _MandateColors.underColor;
-      label = 'Under';
+      label = '${diff.toStringAsFixed(1)} % below min';
       icon = Icons.arrow_downward_rounded;
     } else {
       bg = _MandateColors.within.withAlpha(60);
@@ -749,16 +752,18 @@ class _RadialGauge extends StatelessWidget {
     required this.isUnder,
   });
 
-  double valueToAngle(double value) {
-    const startAngle = 130.0;
-    const sweepAngle = 280.0;
+  // ── Geometry helpers ────────────────────────────────────────────────────────
 
-    return startAngle + (value / 100) * sweepAngle;
-  }
+  /// Maps a 0-100 % value onto the gauge's angular sweep.
+  /// The gauge runs from 135 ° (bottom-left) clockwise 270 ° to 45 ° (bottom-right).
+  static double _valueToDeg(double value) =>
+      135.0 + (value.clamp(0, 100) / 100.0) * 270.0;
+
+  // ── Build ────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final actualColor = isOver
+    final Color actualColor = isOver
         ? _MandateColors.breach
         : isUnder
         ? _MandateColors.underColor
@@ -769,7 +774,7 @@ class _RadialGauge extends StatelessWidget {
       children: [
         SizedBox(
           width: double.infinity,
-          height: 150,
+          height: 180,
           child: SfRadialGauge(
             axes: [
               RadialAxis(
@@ -777,145 +782,259 @@ class _RadialGauge extends StatelessWidget {
                 maximum: 100,
                 showLabels: false,
                 showTicks: false,
-                radiusFactor: 0.95,
+                radiusFactor: 0.88,
 
+                // ── Base track ───────────────────────────────────────────────
                 axisLineStyle: const AxisLineStyle(
-                  thickness: 18,
+                  thickness: 22,
                   cornerStyle: CornerStyle.bothCurve,
                   color: Color(0xFF2A2A2A),
                 ),
 
                 ranges: [
+                  // ── Mandate band (min → max) ─────────────────────────────
                   GaugeRange(
                     startValue: min,
                     endValue: max,
                     color: _MandateColors.mandateRange,
-                    startWidth: 18,
-                    endWidth: 18,
+                    startWidth: 22,
+                    endWidth: 22,
                   ),
+
+                  // // ── Filled progress inside band (min → actual), within only
+                  // if (!isOver && !isUnder)
+                  //   GaugeRange(
+                  //     startValue: min,
+                  //     endValue: actual,
+                  //     color: _MandateColors.actualWithin.withOpacity(0.22),
+                  //     startWidth: 14,
+                  //     endWidth: 14,
+                  //   ),
                 ],
 
-                pointers: <GaugePointer>[
-                  // ──────────────────────────────────────────
-                  // MIN marker
-                  // ──────────────────────────────────────────
+                pointers: [
+                  // ── Min boundary tick ────────────────────────────────────
                   MarkerPointer(
                     value: min,
                     markerType: MarkerType.invertedTriangle,
-                    markerHeight: 12,
-                    markerWidth: 12,
-                    color: const Color.fromARGB(255, 6, 99, 54),
+                    // Rectangle oriented radially: narrow width, taller height
+                    // so it straddles the arc like a tick mark.
+                    markerWidth: 5,
+                    markerHeight: 30,
+                    color: _MandateColors.minMaxTick,
                     enableAnimation: true,
                   ),
 
-                  // ──────────────────────────────────────────
-                  // STRATEGIC markerR
-                  // ──────────────────────────────────────────
-                  MarkerPointer(
-                    value: strategic,
-                    markerType: MarkerType.diamond,
-                    markerHeight: 14,
-                    markerWidth: 14,
-                    color: const Color.fromARGB(255, 187, 168, 0),
-                    enableAnimation: true,
-                  ),
-
-                  // ──────────────────────────────────────────
-                  // MAX marker
-                  // ──────────────────────────────────────────
+                  // ── Max boundary tick ────────────────────────────────────
                   MarkerPointer(
                     value: max,
                     markerType: MarkerType.invertedTriangle,
-                    markerHeight: 12,
-                    markerWidth: 12,
-                    color: Colors.red,
+                    markerWidth: 5,
+                    markerHeight: 30,
+                    color: _MandateColors.minMaxTick,
                     enableAnimation: true,
                   ),
 
-                  // ──────────────────────────────────────────
-                  // ACTUAL allocation needle
-                  // ──────────────────────────────────────────
+                  // ── Strategic target — diamond on outer edge ─────────────
+                  MarkerPointer(
+                    value: strategic,
+                    markerType: MarkerType.triangle,
+                    markerWidth: 4,
+                    markerHeight: 25,
+
+                    // Offset outward so the diamond sits just outside the arc.
+                    offsetUnit: GaugeSizeUnit.logicalPixel,
+                    color: _MandateColors.strategic,
+                    enableAnimation: true,
+                  ),
+
+                  // ── Actual allocation needle ─────────────────────────────
                   NeedlePointer(
                     value: actual,
                     enableAnimation: true,
                     animationDuration: 800,
+                    animationType: AnimationType.ease,
 
-                    needleLength: 0.78,
+                    needleLength: 0.75,
                     needleStartWidth: 1,
                     needleEndWidth: 5,
-
                     needleColor: actualColor,
+
                     tailStyle: const TailStyle(
                       color: Color(0xFF444444),
-                      width: 6,
-                      length: 0.25,
+                      width: 5,
+                      length: 0.22,
                     ),
 
                     knobStyle: KnobStyle(
-                      color: isOver
-                          ? _MandateColors.breach
-                          : isUnder
-                          ? _MandateColors.underColor
-                          : _MandateColors.actualWithin,
+                      color: actualColor,
                       borderWidth: 0,
                       sizeUnit: GaugeSizeUnit.factor,
-                      knobRadius: 0.08,
+                      knobRadius: 0.07,
                     ),
                   ),
                 ],
 
                 annotations: [
+                  // ── Min label ─────────────────────────────────────────────
                   GaugeAnnotation(
-                    angle: valueToAngle(min),
-                    positionFactor: 1.15,
-                    widget: _ArcLabel('Min', min),
+                    angle: _valueToDeg(min),
+                    positionFactor: 1.2,
+                    widget: _ArcTickLabel(
+                      value: min,
+                      color: _MandateColors.minMaxTick,
+                    ),
                   ),
 
+                  // ── Max label ─────────────────────────────────────────────
                   GaugeAnnotation(
-                    angle: valueToAngle(strategic),
-                    positionFactor: 1.15,
-                    widget: _ArcLabel('Target', strategic),
+                    angle: _valueToDeg(max),
+                    positionFactor: 1.2,
+                    widget: _ArcTickLabel(
+                      value: max,
+                      color: _MandateColors.minMaxTick,
+                    ),
                   ),
 
+                  // ── Strategic target label ────────────────────────────────
                   GaugeAnnotation(
-                    angle: valueToAngle(max),
-                    positionFactor: 1.15,
-                    widget: _ArcLabel('Max', max),
+                    angle: _valueToDeg(strategic),
+                    positionFactor: 1.2,
+                    widget: _ArcTickLabel(
+                      prefix: 'Target',
+                      value: strategic,
+                      color: _MandateColors.strategic,
+                      bold: true,
+                    ),
                   ),
+
+                  // // ── Actual value callout — tracks needle angle ────────────
+                  // GaugeAnnotation(
+                  //   angle: _valueToDeg(actual),
+                  //   positionFactor: 1.2, // inside the arc, near the knob
+                  //   widget: _ActualCallout(
+                  //     value: actual,
+                  //     color: actualColor,
+                  //   ),
+                  // ),
                 ],
               ),
             ],
           ),
         ),
 
-        // ── BELOW GAUGE KPI ─────────────────────────────
+        // ── Below-gauge summary row ──────────────────────────────────────────
         Transform.translate(
           offset: const Offset(0, -25),
-          child: Text(
-            '${actual.toStringAsFixed(1)}%',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: actualColor,
-            ),
+          child: Column(
+            children: [
+              Text(
+                '${actual.toStringAsFixed(1)}%',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: actualColor,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                (actual > strategic)
+              ? '${(actual - strategic).toStringAsFixed(1)}% above target'
+              : '${(strategic - actual).toStringAsFixed(1)}% below target',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontStyle: FontStyle.italic,
+                  color: actualColor,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
           ),
         ),
+        // ── Min / Target / Max KPI strip ─────────────────────────────────────
+        _GaugeKpiStrip(
+          min: min,
+          strategic: strategic,
+          max: max,
+          actualColor: actualColor,
+        ),
 
-        Transform.translate(
-          offset: const Offset(0, -25),
-          child: Text(
-            isOver
-                ? 'Over Allocation'
-                : isUnder
-                ? 'Under Allocation'
-                : 'Within Range',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: Colors.grey[400],
-          ),
-        ),)
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Small label rendered by GaugeAnnotation at each tick position
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ArcTickLabel extends StatelessWidget {
+  final String? prefix;
+  final double value;
+  final Color color;
+  final bool bold;
+
+  const _ArcTickLabel({
+    required this.value,
+    required this.color,
+    this.prefix,
+    this.bold = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (prefix != null)
+          Text(
+            prefix!,
+            style: TextStyle(
+              fontSize: 8,
+              fontWeight: FontWeight.w500,
+              color: color.withOpacity(0.7),
+            ),
+          ),
+        Text(
+          '${value.toStringAsFixed(0)}%',
+          style: TextStyle(
+            fontSize: bold ? 10 : 9,
+            fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Compact pill shown *inside* the arc, tracking the needle position
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ActualCallout extends StatelessWidget {
+  final double value;
+  final Color color;
+
+  const _ActualCallout({required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.4), width: 0.8),
+      ),
+      child: Text(
+        '${value.toStringAsFixed(1)}%',
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
     );
   }
 }
@@ -966,6 +1085,143 @@ class _GaugeLabel extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// 3-column KPI strip: Min | Target | Max
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _GaugeKpiStrip extends StatelessWidget {
+  final double min;
+  final double strategic;
+  final double max;
+  final Color actualColor;
+
+  const _GaugeKpiStrip({
+    required this.min,
+    required this.strategic,
+    required this.max,
+    required this.actualColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return IntrinsicHeight(
+      child: Row(
+        children: [
+          _KpiCell(
+            bg: actualColor,
+            label: 'Min',
+            value: '${min.toStringAsFixed(0)}%',
+            valueColor: _MandateColors.minMaxTick,
+            sublabel: 'floor',
+            border: Border(
+              top: BorderSide(color: _MandateColors.minMaxTick, width: 2),
+            ),
+          ),
+          // VerticalDivider(
+          //   width: 1,
+          //   thickness: 0.5,
+          //   color: theme.colorScheme.outlineVariant.withOpacity(0.4),
+          // ),
+          _KpiCell(
+            bg: actualColor,
+            label: 'Target',
+            value: '${strategic.toStringAsFixed(0)}%',
+            valueColor: _MandateColors.strategic,
+            sublabel: 'strategic',
+            border: Border(
+              top: BorderSide(color: _MandateColors.strategic, width: 2),
+            ),
+          ),
+          // VerticalDivider(
+          //   width: 1,
+          //   thickness: 0.5,
+          //   color: theme.colorScheme.outlineVariant.withOpacity(0.4),
+          // ),
+          _KpiCell(
+            bg: actualColor,
+            label: 'Max',
+            value: '${max.toStringAsFixed(0)}%',
+            valueColor: _MandateColors.minMaxTick,
+            sublabel: 'ceiling',
+            border: Border(
+              top: BorderSide(color: _MandateColors.minMaxTick, width: 2),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KpiCell extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color valueColor;
+  final String sublabel;
+  final Border border;
+  final Color bg;
+
+  const _KpiCell({
+    required this.label,
+    required this.value,
+    required this.valueColor,
+    required this.sublabel,
+    required this.border,
+    required this.bg,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        decoration: BoxDecoration(
+          color: bg.withAlpha(0),
+          border: border,
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(4),
+            bottomRight: Radius.circular(4),
+           
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w500,
+                color: theme.colorScheme.onSurfaceVariant,
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: valueColor,
+              ),
+            ),
+            // Text(
+            //   sublabel,
+            //   style: TextStyle(
+            //     fontSize: 9,
+            //     color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+            //   ),
+            // ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1288,12 +1544,18 @@ class _StatusBadge extends StatelessWidget {
 }
 
 abstract class _MandateColors {
-  static const Color mandateRange = Color.fromARGB(255, 30, 64, 92); // Azure
-  static const Color strategic = Color(0xFF6D7B8F); // Slate grey-blue
-  static const Color actualWithin = Color(0xFF1E7E4A); // Green (compliance)
-  static const Color breach = Color(0xFFD93025); // Red (compliance)
-  static const Color underColor = Color(0xFFE8891A); // Orange (compliance)
-  static const Color within = Color(0xFF1E7E4A); // Green (compliance)
+  static const Color mandateRange = Color.fromARGB(
+    255,
+    30,
+    64,
+    92,
+  ); // Azure band
+  static const Color strategic = Color(0xFFD81B60); // Amber diamond
+  static const Color minMaxTick = Color(0xFF378ADD); // Blue boundary ticks
+  static const Color actualWithin = Color(0xFF1D9E75); // Green
+  static const Color breach = Color(0xFFE24B4A); // Red
+  static const Color underColor = Color.fromARGB(255, 255, 217, 1); // Amber
+  static const Color within = Color(0xFF1D9E75); // Green (alias)
 }
 
 String _formatCurrency(double value) {
